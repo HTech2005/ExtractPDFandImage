@@ -4,7 +4,7 @@ Ce projet est un outil en Python permettant d'extraire des informations structur
 
 Il utilise la reconnaissance optique de caractères (OCR) et l'analyse de texte pour identifier des champs spécifiques tels que le numéro de quittance, la date, le montant, etc.
 
-## 🚀 Fonctionnalités
+## Fonctionnalités
 
 - **Extraction PDF** : Lit le contenu textuel des fichiers PDF.
 - **Extraction Image** : Utilise `pytesseract` (OCR) pour extraire le texte des photos de quittances.
@@ -17,7 +17,7 @@ Il utilise la reconnaissance optique de caractères (OCR) et l'analyse de texte 
   - Mode de paiement
   - Montant
 
-## 🛠️ Installation
+## Installation
 
 1. **Cloner le projet** :
    ```bash
@@ -35,7 +35,7 @@ Il utilise la reconnaissance optique de caractères (OCR) et l'analyse de texte 
    - Téléchargez et installez [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki).
    - Ajoutez le chemin de l'exécutable Tesseract à vos variables d'environnement.
 
-## 💻 Utilisation
+## Utilisation
 
 Le script principal est `main.py`. Il détecte automatiquement l'extension du fichier et utilise le bon moteur d'extraction.
 
@@ -49,7 +49,7 @@ Pour tester avec un fichier :
    python main.py
    ```
 
-## 📁 Structure du Projet
+## Structure du Projet
 
 - `main.py` : Point d'entrée principal.
 - `extract_text_from_pdf.py` : Logique d'extraction de texte pour les PDF.
@@ -57,6 +57,4 @@ Pour tester avec un fichier :
 - `extract_info.py` : Regex et logique pour parser les infos d'un texte (PDF).
 - `extract_info_img.py` : Regex et logique pour parser les infos d'un texte (Image).
 
-## 📝 Licence
 
-Ce projet est libre d'utilisation.
