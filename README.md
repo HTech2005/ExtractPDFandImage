@@ -6,16 +6,17 @@ Il utilise la reconnaissance optique de caractères (OCR) et l'analyse de texte 
 
 ## Fonctionnalités
 
-- **Extraction PDF** : Lit le contenu textuel des fichiers PDF.
-- **Extraction Image** : Utilise `pytesseract` (OCR) pour extraire le texte des photos de quittances.
-- **Analyse de données** : Extrait automatiquement les informations clés :
-  - Numéro de quittance
-  - Date et Heure
-  - Partie versante
-  - Poste Régie
-  - Référence et Libellé
-  - Mode de paiement
-  - Montant
+- **Extraction PDF** : Extraction native du texte pour les PDF numériques.
+- **OCR Fallback** : Si un PDF contient uniquement des images (scan), le script bascule automatiquement sur l'OCR (`pypdfium2` + `pytesseract`).
+- **Upscaling Image** : Prétraitement intelligent (agrandissement, contraste, netteté) pour maximiser la précision des photos basse résolution.
+- **Analyse BOA** : Optimisé pour les reçus de la **Bank Of Africa (BOA)**.
+- **Extraction intelligente** : Récupère automatiquement les champs clés :
+  - Date de versement
+  - Référence de l'opération
+  - Numéro de compte
+  - Payeur
+  - Motif
+  - Montant (net crédité)
 
 ## Installation
 
@@ -26,35 +27,33 @@ Il utilise la reconnaissance optique de caractères (OCR) et l'analyse de texte 
    ```
 
 2. **Installer les dépendances** :
-   Assurez-vous d'avoir Python installé, puis exécutez :
    ```bash
-   pip install pytesseract pillow pdfplumber
+   pip install -r requirements.txt
    ```
 
-3. **Installer Tesseract OCR** (pour les images) :
+3. **Installer Tesseract OCR** (Requis pour les images et PDF scannés) :
    - Téléchargez et installez [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki).
-   - Ajoutez le chemin de l'exécutable Tesseract à vos variables d'environnement.
+   - Sur Windows, si tesseract n'est pas dans votre PATH, vous devrez peut-être décommenter la ligne dans `extract_text_from_image.py` et indiquer le chemin vers `tesseract.exe`.
 
 ## Utilisation
 
-Le script principal est `main.py`. Il détecte automatiquement l'extension du fichier et utilise le bon moteur d'extraction.
+Le script `main.py` gère automatiquement la détection du format et le prétraitement.
 
-Pour tester avec un fichier :
-1. Modifiez la variable `filename` dans `main.py` :
-   ```python
-   filename = Path("./votre_fichier.pdf") # ou .jpg
-   ```
-2. Lancez le script :
-   ```bash
-   python main.py
-   ```
+```python
+filename = Path("./votre_recu.pdf") # ou .png/.jpg
+```
+
+Lancez le script :
+```bash
+python main.py
+```
 
 ## Structure du Projet
 
-- `main.py` : Point d'entrée principal.
-- `extract_text_from_pdf.py` : Logique d'extraction de texte pour les PDF.
-- `extract_text_from_image.py` : Logique d'OCR pour les images.
-- `extract_info.py` : Regex et logique pour parser les infos d'un texte (PDF).
-- `extract_info_img.py` : Regex et logique pour parser les infos d'un texte (Image).
+- `main.py` : Chef d'orchestre (gère le format et le prétraitement).
+- `extract_info.py` : Cœur de l'intelligence (Regex et logique de nettoyage BOA).
+- `extract_text_from_pdf.py` : Moteur d'extraction PDF natif.
+- `extract_text_from_image.py` : Moteur OCR.
+- `requirements.txt` : Liste des dépendances.
 
 
