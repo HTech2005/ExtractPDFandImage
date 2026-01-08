@@ -1,74 +1,34 @@
 import re
 
-def extract_info_quittance_img(text):
-    # Nettoyage de certains caractères parasites
-    text = text.replace('|', ' ')
-    text = text.replace('‘', '')
-    text = text.replace('—', '-')
-
-    # Numéro de quittance
-    numero = re.search(r"Quittance N°\s*([A-Z0-9\-\/]+)", text)
+def extract_info_boa_img(text):
+    # Nettoyage de base pour OCR
+    text = text.replace('|', ' ').replace('‘', '').replace('—', '-')
     
-    # Date
-    date = re.search(r"Date\s*:\s*(\d{2}/\d{2}/\d{4})", text)
+    # Date de versement
+    date_match = re.search(r"Date\s*[:e]\s*(\d{2}[./]\d{2}[./]\d{4})", text, re.IGNORECASE)
     
-    # Heure
-    heure = re.search(r"Quittance\s*:\s*\d{2}/\d{2}/\d{4}\s*-\s*([0-9:]+)", text)
+    # Référence de paiement
+    ref_match = re.search(r"(?:R[ée]f[ée]rence|ence)\s*:\s*([A-Z0-9\/]+)", text, re.IGNORECASE)
     
-    # Partie versante
-    partie_versante = re.search(r"Partie\s+versante\s*:\s*(.+?)(?=Poste\s+R[ée]gie)", text, re.DOTALL)
+    # Numéro de compte
+    compte_match = re.search(r"compte\s*N[o°]?\s*(\d{10,})", text, re.IGNORECASE)
     
-    # Poste régie
-    poste_regie = re.search(r"Poste\s+R[ée]gie\s*:\s*(.+?)(?=(?:\n|[A-Z0-9]{5,}\s*[-–]|Montant))", text, re.DOTALL)
+    # Payeur et Motif
+    payeur_motif_match = re.search(r"([A-Z\s]{5,})\s*/\s*(.+)", text)
     
-    # Référence et libellé : chercher **après Poste Régie**
-    poste_regie_end = poste_regie.end() if poste_regie else 0
-    # On cherche une référence (souvent BJ...) suivie d'un tiret et du libellé
-    ref_libelle_matches = re.findall(r"([A-Z0-9]{5,})\s*-\s*([^\n]+)", text[poste_regie_end:])
+    # Montant (XOF)
+    montant_match = re.search(r"XOF\s*([0-9\s.,]+)", text)
     
-    reference = None
-    libelle_reference = None
-    mode_val = None
-
-    if ref_libelle_matches:
-        # On prend le dernier match après Poste Régie (souvent celui de la table)
-        reference = ref_libelle_matches[-1][0].strip()
-        libelle_raw = ref_libelle_matches[-1][1].strip()
-        
-        # Séparer le libellé du montant s'ils sont collés
-        # Souvent le montant est à la fin : "Libellé 3 000"
-        libelle_clean = re.sub(r"\s+\d[\d\s.,]*$", "", libelle_raw).strip()
-        
-        # Chercher le mode dans ce libellé
-        mode_match = re.search(r"(Mobile Money|MTN MOBILE MONEY|Orange Money)", libelle_clean, re.IGNORECASE)
-        if mode_match:
-            mode_val = mode_match.group(0).strip()
-            # Retirer le mode et les parenthèses éventuelles
-            libelle_clean = libelle_clean.replace(mode_val, "").replace("()", "").replace("( )", "").strip()
-        
-        libelle_reference = libelle_clean
-    else:
-        reference = None
-        libelle_reference = None
-        mode_val = None
-    
-    # Si le mode n’a pas été trouvé dans le libellé, on cherche dans tout le texte
-    if not mode_val:
-        mode_search = re.search(r"(Mobile Money|MTN MOBILE MONEY|Orange Money)", text, re.IGNORECASE)
-        mode_val = mode_search.group(0).strip() if mode_search else None
-
-    # Montant versé
-    montant = re.search(r"Montant\s+versé\s*([0-9\s.,]+)", text)
-    montant_val = montant.group(1).replace("\n", "").replace(" ", "").replace(",", " ") if montant else None
-
-    return {
-        "numero": numero.group(1) if numero else None,
-        "date": date.group(1) if date else None,
-        "heure": heure.group(1) if heure else None,
-        "partie_versante": partie_versante.group(1).strip() if partie_versante else None,
-        "poste_regie": poste_regie.group(1).strip() if poste_regie else None,
-        "reference": reference,
-        "libelle_reference": libelle_reference,
-        "mode": mode_val,
-        "montant": montant_val
+    infos = {
+        "date_versement": date_match.group(1) if date_match else None,
+        "reference": ref_match.group(1) if ref_match else None,
+        "numero_compte": compte_match.group(1) if compte_match else None,
+        "payeur": payeur_motif_match.group(1).strip() if payeur_motif_match else None,
+        "motif": payeur_motif_match.group(2).strip() if payeur_motif_match else None,
+        "montant": montant_match.group(1).strip() if montant_match else None
     }
+    
+    if infos["payeur"]:
+        infos["payeur"] = " ".join(infos["payeur"].split())
+        
+    return infos
