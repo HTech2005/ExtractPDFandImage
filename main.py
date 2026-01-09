@@ -18,9 +18,9 @@ def preprocess_image(pil_img):
     # 1. Conversion en niveaux de gris
     img = ImageOps.grayscale(pil_img)
     
-    # 2. Augmenter le contraste et la netteté modérément
-    img = ImageEnhance.Contrast(img).enhance(1.5)
-    img = ImageEnhance.Sharpness(img).enhance(2.0)
+    # 2. Augmenter le contraste et la netteté très agressivement
+    img = ImageEnhance.Contrast(img).enhance(2.2)
+    img = ImageEnhance.Sharpness(img).enhance(4.0)
     
     # 3. Ajouter une bordure blanche fixe
     img = ImageOps.expand(img, border=40, fill='white')
@@ -51,14 +51,19 @@ def process_image_with_scaling(image_path):
     print("Prétraitement de l'image (source)...")
     img = Image.open(image_path)
     
-    # 1. Upscaling pour matcher la qualité PDF scale=3 (~2000px de large)
+    # 1. Upscaling (Essentiel pour la clarté du texte fin comme la référence)
     w, h = img.size
     if w < 1800:
         scale_factor = 2000 / w
         img = img.resize((int(w * scale_factor), int(h * scale_factor)), Image.Resampling.LANCZOS)
         print(f"Image agrandie : {w}x{h} -> {img.size[0]}x{img.size[1]}")
+    
+    # 2. Rogner les bords pour enlever d'éventuels cadres noirs (2% de chaque côté)
+    # Important pour les photos avec des bords sombres
+    w, h = img.size
+    img = img.crop((int(w*0.02), int(h*0.02), int(w*0.98), int(h*0.98)))
 
-    # 2. Prétraitement unifié
+    # 3. Prétraitement unifié
     proc_img = preprocess_image(img)
     
     temp_img = "temp_proc.png"
