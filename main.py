@@ -10,8 +10,8 @@ import os
 from pathlib import Path
 
 
-filename = Path("./boa.pdf")
-#filename = Path("./boaImg.PNG")
+#filename = Path("./boa.pdf")
+filename = Path("./boaImg.PNG")
 extension = filename.suffix
 
 def preprocess_image(pil_img):

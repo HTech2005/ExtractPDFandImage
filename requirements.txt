@@ -2,3 +2,6 @@ pdfplumber
 pytesseract
 Pillow
 pypdfium2
+fastapi
+uvicorn
+python-multipart
