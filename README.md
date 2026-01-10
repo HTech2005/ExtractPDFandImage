@@ -51,9 +51,70 @@ python main.py
 ## Structure du Projet
 
 - `main.py` : Chef d'orchestre (gère le format et le prétraitement).
+- `api.py` : API REST FastAPI pour l'extraction via HTTP.
 - `extract_info.py` : Cœur de l'intelligence (Regex et logique de nettoyage BOA).
 - `extract_text_from_pdf.py` : Moteur d'extraction PDF natif.
 - `extract_text_from_image.py` : Moteur OCR.
 - `requirements.txt` : Liste des dépendances.
+
+## API REST
+
+L'application inclut une API REST construite avec **FastAPI**.
+
+### Démarrer l'API
+
+```bash
+python api.py
+```
+
+L'API sera accessible sur `http://localhost:8000`
+
+### Documentation interactive
+
+- **Swagger UI** : `http://localhost:8000/docs`
+- **ReDoc** : `http://localhost:8000/redoc`
+
+### Endpoints
+
+#### POST `/api/extract`
+
+Extrait les informations d'un reçu (PDF ou Image).
+
+**Exemple avec cURL** :
+```bash
+curl -X POST "http://localhost:8000/api/extract" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@votre_recu.pdf"
+```
+
+**Réponse** :
+```json
+{
+  "date_versement": "2024-01-15",
+  "reference": "REF123456",
+  "numero_compte": "123456789",
+  "payeur": "JOHN DOE",
+  "motif": "Paiement facture",
+  "montant": "50000"
+}
+```
+
+## Déploiement
+
+### PythonAnywhere
+
+Vous pouvez déployer cette API sur **PythonAnywhere**. Consultez le guide détaillé : [DEPLOYMENT.md](DEPLOYMENT.md)
+
+> **Note** : Un compte payant (Hacker $5/mois) est requis pour utiliser Tesseract OCR.
+
+### Alternatives de déploiement
+
+- **Render.com** (Gratuit avec limitations)
+- **Railway.app** ($5 crédit gratuit/mois)
+- **Google Cloud Run** (Gratuit jusqu'à 2M requêtes/mois)
+- **Heroku** (À partir de $5/mois)
+
+Voir [DEPLOYMENT.md](DEPLOYMENT.md) pour plus de détails.
 
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -21,6 +21,9 @@ app = FastAPI(
     description="API pour extraire les informations (Montant, Date, Référence, etc.) des reçus(PDF ou Image).",
     version="1.0.0"
 )
+
+# Créer un router avec le préfixe /api
+api_router = APIRouter(prefix="/api")
 
 class ExtractionResult(BaseModel):
     date_versement: Optional[str] = None
@@ -80,7 +83,7 @@ def process_image_api(file_path):
         os.remove(temp_img)
     return text
 
-@app.post("/extract", response_model=ExtractionResult, summary="Extraire les données d'un reçu")
+@api_router.post("/extract", response_model=ExtractionResult, summary="Extraire les données d'un reçu")
 async def extract_receipt(file: UploadFile = File(...)):
     """
     Téléchargez un fichier PDF ou une Image (PNG, JPG) pour extraire les données.
@@ -111,6 +114,9 @@ async def extract_receipt(file: UploadFile = File(...)):
 @app.get("/", include_in_schema=False)
 async def root():
     return JSONResponse(content={"message": "Extraction API is running. Go to /docs for Swagger documentation."})
+
+# Inclure le router avec le préfixe /api
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
