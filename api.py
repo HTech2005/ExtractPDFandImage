@@ -50,18 +50,33 @@ def process_pdf_api(file_path):
         full_text = ""
         for i in range(len(pdf)):
             page = pdf[i]
-            bitmap = page.render(scale=3)
+            bitmap = page.render(scale=5)
             pil_img = bitmap.to_pil()
             proc_img = preprocess_image_api(pil_img)
             temp_img = f"api_temp_page_{i}.png"
             proc_img.save(temp_img)
-            page_text = extract_text_from_image(temp_img, config='--psm 3')
+            page_text = extract_text_from_image(temp_img, config='--psm 6')
             full_text += page_text + "\n"
             if os.path.exists(temp_img):
                 os.remove(temp_img)
         pdf.close()
         text = full_text
     return text
+
+def convert_image_to_pdf_api(image_path, pdf_path):
+    """Convertit une image en PDF en conservant la qualité."""
+    img = Image.open(image_path)
+    # Upscaling préventif pour la conversion PDF
+    w, h = img.size
+    if w < 1800:
+        scale_factor = 2000 / w
+        img = img.resize((int(w * scale_factor), int(h * scale_factor)), Image.Resampling.LANCZOS)
+    
+    # Conversion en RGB si nécessaire (Pillow ne supporte pas RGBA -> PDF)
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    
+    img.save(pdf_path, "PDF", resolution=300.0)
 
 def process_image_api(file_path):
     img = Image.open(file_path)
@@ -98,10 +113,15 @@ async def extract_receipt(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        if extension == ".pdf":
-            raw_text = process_pdf_api(temp_file_path)
+        if extension != ".pdf":
+            # Convertir l'image en PDF temporaire
+            temp_pdf_path = f"{temp_file_path}.pdf"
+            convert_image_to_pdf_api(temp_file_path, temp_pdf_path)
+            raw_text = process_pdf_api(temp_pdf_path)
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
         else:
-            raw_text = process_image_api(temp_file_path)
+            raw_text = process_pdf_api(temp_file_path)
         
         infos = extract_info_boa(raw_text)
         return infos

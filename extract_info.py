@@ -30,36 +30,44 @@ def extract_info_boa(text):
 
     # --- REFERENCE ---
     reference = None
-    # Pattern YB... (BOA) - Très permissif pour les images (Y8, V8, etc)
-    ref_match_permissive = re.search(r"([YVTB83][B8]\s*[A-Z\d.]{4,})\s*/\s*([A-Za-z\d]{2,})", raw_text_norm, re.IGNORECASE)
-    if ref_match_permissive:
-        core = "".join(filter(str.isdigit, ref_match_permissive.group(1).upper()))
-        suffix = ref_match_permissive.group(2).upper()
-        reference = f"YB{core}/{suffix}"
-    
+    # Priorité 1 : Pattern direct BOA (YB + chiffres + / + suffixe)
+    # On cherche YB ou VB ou TB ou V8 ou Y8
+    ref_direct = re.search(r"([YVTB][B86]\s*\d{3,}[A-Z\d]*\s*/\s*[A-Z\d]{2,5})", raw_text_norm, re.IGNORECASE)
+    if ref_direct:
+        temp_ref = ref_direct.group(1).upper().replace(" ", "")
+        # Normalisation prefix
+        for p in ["YB", "VB", "TB"]:
+            if temp_ref.startswith(p[0]):
+                temp_ref = p + temp_ref[2:]
+                break
+        reference = temp_ref
+
     if not reference:
-        # Fallback context-aware (après "Référence", "Y", "Ne", ou même "CAP")
-        # On cherche un pattern XXXXX/XXX même s'il ne contient que des lettres ou chiffres manglés
-        ref_match_context = re.search(r"(?:Ref[ée]rence|Ref|ence:|Y|Ne|CAP|as|as\s+Q)[^A-Z\d/]*([YVTB83]B)?\s*([A-Z\d.]{4,})\s*/\s*([A-Z\d]{2,3})", raw_text_norm, re.IGNORECASE)
+        # Priorité 2 : Après le mot clé "Référence"
+        ref_match_keyword = re.search(r"R[ée]f[ée]rence\s*[:; ]+([A-Z\d./]{4,})", raw_text_norm, re.IGNORECASE)
+        if ref_match_keyword:
+            reference = ref_match_keyword.group(1).upper().replace(" ", "")
+
+    if not reference:
+        # Fallback context-aware (Y, Ne, CAP, etc.) - Moins prioritaire car CAP peut être trompeur
+        ref_match_context = re.search(r"(?:Ref|ence|Y|Ne|Quitt|Q\.)[^A-Z\d/]*([YVTB83][B86])?\s*([A-Z\d.]{4,})\s*(?:/)\s*([A-Z\d]{2,5})", raw_text_norm, re.IGNORECASE)
         if ref_match_context:
+            prefix = ref_match_context.group(1) or "YB"
+            prefix = prefix.replace("8", "B").replace("6", "B")
             core = "".join(filter(str.isdigit, ref_match_context.group(2)))
             suffix = ref_match_context.group(3).upper()
             if core:
-                reference = f"YB{core}/{suffix}"
+                reference = f"{prefix}{core}/{suffix}"
             else:
-                # Si pas de chiffres, on prend le bloc tel quel si c'est près d'un mot clé
-                reference = f"YB{ref_match_context.group(2)}/{suffix}".upper()
+                reference = f"{prefix}{ref_match_context.group(2).upper()}/{suffix}"
 
     if not reference:
         # Dernier recours : N'importe quoi qui contient un slash (sauf payeur/motif)
-        # On cherche un pattern AlphaNum/AlphaNum qui n'est pas le payeur ou une date
-        raw_slashes = re.findall(r"\b([A-Z\d.]{4,})\s*/\s*([A-Za-z\d]{2,5})\b", raw_text_norm, re.IGNORECASE)
+        raw_slashes = re.findall(r"\b([A-Z\d.]{4,})\s*/\s*([A-Za-z\d]{2,10})\b", raw_text_norm, re.IGNORECASE)
         for r1, r2 in raw_slashes:
-            # On ignore les mots clés de versement et les noms de payeur probables
-            if any(k in r2.upper() for k in ["QUITT", "VERS", "ESPE", "TIMB", "COTON", "COT", "BENI"]): continue
+            if any(k in r2.upper() for k in ["QUITT", "VERS", "ESPE", "TIMB", "COTON", "COT", "BENI", "2025"]): continue
             if any(k in r1.upper() for k in ["BANABASSI", "HOUNGEEDJI", "2009", "BENIN", "ICOT", "JCOT", "RB", "RCCM", "934", "0061"]): continue
             
-            # Nettoyage : On ne garde que les 10 premiers caractères du r2 s'il est collé au reste
             clean_r2 = re.split(r"\s+", r2.strip())[0]
             if len(clean_r2) > 6: clean_r2 = clean_r2[:6]
             
@@ -112,16 +120,25 @@ def extract_info_boa(text):
             # Bonus si finit par 000 ou 500 (très probable pour BOA)
             if val.endswith("000") or val.endswith("500"):
                 score += 50
-            # Bonus si près de XOF dans le texte original
+            
+            # Bonus TRÈS fort si près de XOF ou de "votre compte"
+            # On cherche dans le texte original (nettoyé des espaces multiples)
             if re.search(r"XOF\s*" + re.escape(val), text_for_amt, re.IGNORECASE) or \
-               re.search(re.escape(val) + r"\s*majore", text_for_amt, re.IGNORECASE):
-                score += 30
+               re.search(re.escape(val) + r"\s*majore", text_for_amt, re.IGNORECASE) or \
+               re.search(r"compte\s*No[^0-9]*de[^0-9]*" + re.escape(val), text_for_amt, re.IGNORECASE):
+                score += 100
+            
+            # Pénalité si présent dans une ligne de bruit (footer)
+            # On cherche si le nombre est près de mots clés du footer
+            if re.search(r"(?:RCCM|IFU|SWIFT|0879|934|0061)[^0-9]*" + re.escape(val), text_for_amt, re.IGNORECASE):
+                score -= 80
+
             scores[val] = score
 
-        # On prend le meilleur score. Si égalité, on prend la valeur la plus petite (net avant total)
-        sorted_scores = sorted(scores.items(), key=lambda x: (-x[1], int(x[0])))
+        # On prend le meilleur score. Si égalité, on prend la valeur la plus grande (total plus probable que timbre)
+        sorted_scores = sorted(scores.items(), key=lambda x: (-x[1], -int(x[0])))
         
-        # On vérifie aussi si un candidat est après "compte No"
+        # On vérifie aussi si un candidat est après "compte No" via regex directe
         compte_line_match = re.search(r"compte\s*(?:No'|No|No°|No’)\s*\d{10,13}[^0-9]*de[^0-9]*([0-9\s.,]{3,15})", text_for_amt, re.IGNORECASE)
         if compte_line_match:
             clean_compte_amt = "".join(filter(str.isdigit, compte_line_match.group(1).replace(",", "")))

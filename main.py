@@ -10,15 +10,15 @@ import os
 from pathlib import Path
 
 
-#filename = Path("./boa.pdf")
-filename = Path("./boaImg.PNG")
+filename = Path("./boa.pdf")
+#filename = Path("./boaImg.PNG")
 extension = filename.suffix
 
 def preprocess_image(pil_img):
     # 1. Conversion en niveaux de gris
     img = ImageOps.grayscale(pil_img)
     
-    # 2. Augmenter le contraste et la netteté très agressivement
+    # 2. Amélioration modérée (moins agressif que la binarisation)
     img = ImageEnhance.Contrast(img).enhance(2.2)
     img = ImageEnhance.Sharpness(img).enhance(4.0)
     
@@ -32,7 +32,7 @@ def process_pdf_with_ocr(file_path):
     full_text = ""
     for i in range(len(pdf)):
         page = pdf[i]
-        bitmap = page.render(scale=3)
+        bitmap = page.render(scale=5)
         pil_img = bitmap.to_pil()
         
         # Prétraitement
@@ -40,38 +40,34 @@ def process_pdf_with_ocr(file_path):
         
         temp_img = f"temp_page_{i}.png"
         proc_img.save(temp_img)
-        text = extract_text_from_image(temp_img, config='--psm 3')
+        text = extract_text_from_image(temp_img, config='--psm 6')
         full_text += text + "\n"
         if os.path.exists(temp_img):
             os.remove(temp_img)
     pdf.close()
     return full_text
 
-def process_image_with_scaling(image_path):
-    print("Prétraitement de l'image (source)...")
+def convert_image_to_pdf(image_path, pdf_path):
+    print(f"Conversion de l'image en PDF : {image_path} -> {pdf_path}")
     img = Image.open(image_path)
-    
-    # 1. Upscaling (Essentiel pour la clarté du texte fin comme la référence)
+    # Upscaling
     w, h = img.size
     if w < 1800:
         scale_factor = 2000 / w
         img = img.resize((int(w * scale_factor), int(h * scale_factor)), Image.Resampling.LANCZOS)
-        print(f"Image agrandie : {w}x{h} -> {img.size[0]}x{img.size[1]}")
     
-    # 2. Rogner les bords pour enlever d'éventuels cadres noirs (2% de chaque côté)
-    # Important pour les photos avec des bords sombres
-    w, h = img.size
-    img = img.crop((int(w*0.02), int(h*0.02), int(w*0.98), int(h*0.98)))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    
+    img.save(pdf_path, "PDF", resolution=300.0)
 
-    # 3. Prétraitement unifié
-    proc_img = preprocess_image(img)
-    
-    temp_img = "temp_proc.png"
-    proc_img.save(temp_img)
-    text = extract_text_from_image(temp_img, config='--psm 3')
-    
-    if os.path.exists(temp_img):
-        os.remove(temp_img)
+def process_image_with_scaling(image_path):
+    # Cette fonction devient un wrapper vers la conversion PDF
+    temp_pdf = "temp_converted.pdf"
+    convert_image_to_pdf(image_path, temp_pdf)
+    text = process_pdf_with_ocr(temp_pdf)
+    if os.path.exists(temp_pdf):
+        os.remove(temp_pdf)
     return text
 
 if extension.lower() in [".pdf"]:
